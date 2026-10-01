@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>برنامه من</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#172033;font-family:Tahoma,Arial,sans-serif}
+header{background:#111827;color:white;padding:22px 18px 18px;border-radius:0 0 24px 24px}
+h1{margin:0 0 5px;font-size:26px}.sub{opacity:.75;font-size:13px}
+.wrap{max-width:620px;margin:auto;padding:16px}.card{background:white;border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 3px 14px #0000000b}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.progress{height:9px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-top:10px}.bar{height:100%;background:#22c55e;width:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{text-align:center;background:#f8fafc;padding:12px;border-radius:14px}.num{font-size:21px;font-weight:bold}.label{font-size:11px;color:#64748b}
+.task{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px solid #eef0f3}.task:last-child{border-bottom:0}
+.check{width:25px;height:25px;border-radius:8px;border:2px solid #cbd5e1;background:white;flex:none;cursor:pointer}.check.done{background:#22c55e;border-color:#22c55e;color:white;text-align:center;font-weight:bold}
+.task.done .name{text-decoration:line-through;color:#94a3b8}.name{font-weight:bold}.time{font-size:12px;color:#64748b;margin-top:4px}.tag{display:inline-block;font-size:10px;background:#eef2ff;color:#4f46e5;border-radius:20px;padding:3px 7px;margin-top:6px}
+.actions{margin-right:auto;display:flex;gap:5px}.iconbtn{border:0;background:#f1f5f9;border-radius:9px;padding:7px;cursor:pointer}
+button.primary{width:100%;border:0;background:#111827;color:#fff;border-radius:14px;padding:13px;font-size:15px;font-weight:bold;cursor:pointer}
+input,select{width:100%;padding:12px;border:1px solid #dbe1e8;border-radius:11px;background:#fff;font:inherit;margin-top:6px}
+label{display:block;font-size:12px;color:#475569;margin-top:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.empty{text-align:center;color:#94a3b8;padding:25px}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:5}.modal.show{display:flex}.sheet{background:#fff;width:100%;max-width:620px;border-radius:24px 24px 0 0;padding:18px;max-height:92vh;overflow:auto}
+.close{border:0;background:#f1f5f9;border-radius:10px;padding:8px 12px;cursor:pointer}.danger{color:#dc2626}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1>📅 برنامه من</h1><div class="sub" id="dateText"></div>
+</div></header>
+<main class="wrap">
+<div class="card">
+<div class="row"><strong>پیشرفت امروز</strong><strong id="percent">۰٪</strong></div>
+<div class="progress"><div class="bar" id="bar"></div></div>
+</div>
+<div class="card stats">
+<div class="stat"><div class="num" id="total">۰</div><div class="label">کل فعالیت</div></div>
+<div class="stat"><div class="num" id="done">۰</div><div class="label">انجام‌شده</div></div>
+<div class="stat"><div class="num" id="minutes">۰</div><div class="label">دقیقه برنامه</div></div>
+</div>
+<div class="card">
+<div class="row"><strong>فعالیت‌های امروز</strong><button class="iconbtn" onclick="openModal()">➕ افزودن</button></div>
+<div id="tasks"></div>
+</div>
+<button class="primary" onclick="openModal()">➕ افزودن فعالیت جدید</button>
+</main>
+
+<div class="modal" id="modal">
+<div class="sheet">
+<div class="row"><h2 id="modalTitle">افزودن فعالیت</h2><button class="close" onclick="closeModal()">بستن</button></div>
+<input type="hidden" id="editId">
+<label>نام فعالیت<input id="name" placeholder="مثلاً مطالعه ترید"></label>
+<div class="grid2">
+<label>زمان شروع<input id="start" type="time"></label>
+<label>زمان پایان<input id="end" type="time"></label>
+</div>
+<div class="grid2">
+<label>تاریخ<input id="date" type="date"></label>
+<label>دسته<select id="category"><option>شخصی</option><option>ترید</option><option>دانشگاه</option><option>کار</option><option>ورزش</option><option>مطالعه</option></select></label>
+</div>
+<label>یادآوری<select id="reminder"><option value="0">بدون یادآوری</option><option value="5">۵ دقیقه قبل</option><option value="15">۱۵ دقیقه قبل</option><option value="30">۳۰ دقیقه قبل</option></select></label>
+<br><button class="primary" onclick="saveTask()">ذخیره فعالیت</button>
+</div></div>
+
+<script>
+const KEY='myPlannerTasksV1';
+let tasks=JSON.parse(localStorage.getItem(KEY)||'[]');
+const fa=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+function today(){return new Date().toISOString().slice(0,10)}
+function fmtDate(s){let d=new Date(s+'T12:00:00');return new Intl.DateTimeFormat('fa-AF',{weekday:'long',year:'numeric',month:'long',day:'numeric'}).format(d)}
+function save(){localStorage.setItem(KEY,JSON.stringify(tasks))}
+function render(){
+ const d=today(); document.getElementById('dateText').textContent=fmtDate(d);
+ let todayTasks=tasks.filter(x=>x.date===d).sort((a,b)=>a.start.localeCompare(b.start));
+ let total=todayTasks.length, done=todayTasks.filter(x=>x.done).length;
+ document.getElementById('total').textContent=fa(total);document.getElementById('done').textContent=fa(done);
+ let mins=todayTasks.reduce((s,x)=>s+Math.max(0,(+x.end.split(':')[0]*60+ +x.end.split(':')[1])-(+x.start.split(':')[0]*60+ +x.start.split(':')[1])),0);
+ document.getElementById('minutes').textContent=fa(mins);
+ let p=total?Math.round(done/total*100):0;document.getElementById('percent').textContent=fa(p)+'٪';document.getElementById('bar').style.width=p+'%';
+ let box=document.getElementById('tasks');box.innerHTML='';
+ if(!total){box.innerHTML='<div class="empty">امروز هنوز فعالیتی ثبت نشده است.</div>';return}
+ todayTasks.forEach(x=>{
+  let el=document.createElement('div');el.className='task '+(x.done?'done':'');
+  el.innerHTML=`<button class="check ${x.done?'done':''}" onclick="toggle('${x.id}')">${x.done?'✓':''}</button>
+  <div style="flex:1"><div class="name">${esc(x.name)}</div><div class="time">🕐 ${x.start} تا ${x.end}</div><span class="tag">${esc(x.category)}</span></div>
+  <div class="actions"><button class="iconbtn" onclick="editTask('${x.id}')">✏️</button><button class="iconbtn" onclick="removeTask('${x.id}')">🗑️</button></div>`;
+  box.appendChild(el);
+ });
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function openModal(id){
+ document.getElementById('modal').classList.add('show');
+ document.getElementById('editId').value=id||'';document.getElementById('modalTitle').textContent=id?'ویرایش فعالیت':'افزودن فعالیت';
+ if(id){let x=tasks.find(t=>t.id===id);name.value=x.name;start.value=x.start;end.value=x.end;date.value=x.date;category.value=x.category;reminder.value=x.reminder}
+ else{name.value='';start.value='08:00';end.value='09:00';date.value=today();category.value='شخصی';reminder.value='0'}
+}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+function saveTask(){
+ let n=name.value.trim();if(!n){alert('نام فعالیت را وارد کن.');return}
+ let id=document.getElementById('editId').value;
+ let obj={id:id||Date.now().toString(),name:n,start:start.value,end:end.value,date:date.value,category:category.value,reminder:reminder.value,done:false};
+ if(id){let old=tasks.find(t=>t.id===id);obj.done=old.done;tasks=tasks.map(t=>t.id===id?obj:t)}else tasks.push(obj);
+ save();closeModal();render();
+}
+function toggle(id){tasks=tasks.map(t=>t.id===id?({...t,done:!t.done}):t);save();render()}
+function editTask(id){openModal(id)}
+function removeTask(id){if(confirm('این فعالیت حذف شود؟')){tasks=tasks.filter(t=>t.id!==id);save();render()}}
+render();
+</script>
+</body></html>
